@@ -1,0 +1,35 @@
+name: Live GitHub Cloud Pool Engine
+
+on:
+  workflow_dispatch: # Allows you to start the pool with a click in your browser
+
+jobs:
+  run-pool-cloud:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch Codebase
+        uses: actions/checkout@v4
+
+      - name: Deploy Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Initialize Scripts
+        run: npm install
+
+      - name: Setup Secure Network Tunnel (Ngrok)
+        run: |
+          curl -s https://amazonaws.com | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
+          echo "deb https://amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
+          sudo apt-get update && sudo apt-get install ngrok
+
+      - name: Boot Pool Core & Expose Stratum Port
+        env:
+          NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+        run: |
+          ngrok config add-authtoken $NGROK_AUTH_TOKEN
+          # Launch pool server core to the cloud background
+          node server.js &
+          # Safely open port 3333 globally for your NerdMiner/Bitaxe
+          ngrok tcp 3333
